@@ -1,0 +1,28 @@
+{
+	"$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+	"component": {
+		"button": {
+			"$extensions": {
+				"ai.reve.root": true
+			},
+			"height": {
+				"$type": "number",
+				"$extensions": {
+					"ai.reve.custom-unit": "{base.spacing}"
+				},
+				"x-small": {
+					"$value": 2.5
+				},
+				"small": {
+					"$value": 4
+				},
+				"medium": {
+					"$value": 5
+				},
+				"large": {
+					"$value": 6
+				}
+			}
+		}
+	}
+}

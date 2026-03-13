@@ -1,0 +1,58 @@
+{
+	"$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+	"box-shadow": {
+		"$type": "shadow",
+		"panel": {
+			"$value": [
+				{
+					"color": {
+						"colorSpace": "hsl",
+						"components": { "$ref": "#/base/alpha/dark/$value/components" },
+						"alpha": 0.2
+					},
+					"offsetX": "{base.zero}",
+					"offsetY": { "value": 8, "unit": "px" },
+					"blur": { "value": 24, "unit": "px" },
+					"spread": "{base.zero}"
+				},
+				{
+					"color": {
+						"colorSpace": "hsl",
+						"components": { "$ref": "#/base/alpha/dark/$value/components" },
+						"alpha": 0.12
+					},
+					"offsetX": "{base.zero}",
+					"offsetY": { "value": 1, "unit": "px" },
+					"blur": { "value": 4, "unit": "px" },
+					"spread": "{base.zero}"
+				}
+			]
+		},
+		"button": {
+			"$value": [
+				{
+					"color": {
+						"colorSpace": "hsl",
+						"components": { "$ref": "#/base/alpha/dark/$value/components" },
+						"alpha": 0.16
+					},
+					"offsetX": "{base.zero}",
+					"offsetY": { "value": 2, "unit": "px" },
+					"blur": { "value": 8, "unit": "px" },
+					"spread": "{base.zero}"
+				},
+				{
+					"color": {
+						"colorSpace": "hsl",
+						"components": { "$ref": "#/base/alpha/dark/$value/components" },
+						"alpha": 0.14
+					},
+					"offsetX": "{base.zero}",
+					"offsetY": "{base.zero}",
+					"blur": { "value": 1, "unit": "px" },
+					"spread": "{base.zero}"
+				}
+			]
+		}
+	}
+}

@@ -1,0 +1,54 @@
+{
+	"$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+	"$description": "Foundational design tokens",
+	"base": {
+		"$extensions": {
+			"ai.reve.root": true
+		},
+		"alpha": {
+			"$type": "color",
+			"dark": {
+				"$value": {
+					"colorSpace": "hsl",
+					"components": ["none", 0, 0]
+				}
+			},
+			"light": {
+				"$value": {
+					"colorSpace": "hsl",
+					"components": ["none", 0, 100]
+				}
+			}
+		},
+		"ease-in-out-quad": {
+			"$type": "cubicBezier",
+			"$value": [0.455, 0.03, 0.515, 0.955]
+		},
+		"spacing": {
+			"$type": "dimension",
+			"$description": "Base spacing unit (8px grid)",
+			"$value": {
+				"value": 8,
+				"unit": "px"
+			}
+		},
+		"transparent": {
+			"$type": "color",
+			"$value": {
+				"colorSpace": "hsl",
+				"components": ["none", "none", "none"],
+				"alpha": 0
+			}
+		},
+		"zero": {
+			"$type": "dimension",
+			"$extensions": {
+				"ai.reve.private": true
+			},
+			"$value": {
+				"value": 0,
+				"unit": "px"
+			}
+		}
+	}
+}

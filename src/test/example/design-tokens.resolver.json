@@ -1,0 +1,51 @@
+{
+	"$schema": "https://www.designtokens.org/schemas/2025.10/resolver.json",
+	"version": "2025.10",
+	"sets": {
+		"core": {
+			"sources": [
+				{
+					"$ref": "base.json"
+				},
+				{
+					"$ref": "border-radius.json"
+				},
+				{
+					"$ref": "color.json"
+				},
+				{
+					"$ref": "component.button.json"
+				},
+				{
+					"$ref": "component.icon.json"
+				},
+				{
+					"$ref": "component.panel.json"
+				},
+				{
+					"$ref": "focus-ring.json"
+				},
+				{
+					"$ref": "font.json"
+				},
+				{
+					"$ref": "shadow.json"
+				},
+				{
+					"$ref": "spacing.json"
+				},
+				{
+					"$ref": "transition.json"
+				},
+				{
+					"$ref": "z-index.json"
+				}
+			]
+		}
+	},
+	"resolutionOrder": [
+		{
+			"$ref": "#/sets/core"
+		}
+	]
+}

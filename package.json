@@ -1,0 +1,52 @@
+{
+	"name": "dtcg-tools",
+	"version": "0.0.0",
+	"description": "TypeScript types for the Design Tokens Community Group (DTCG) 2025.10 format and resolver schemas.",
+	"author": "Jonathan Neal <jonathantneal@hotmail.com> (https://jonneal.dev)",
+	"homepage": "https://github.com/jsxtools/dtcg-tools",
+	"license": "MIT-0",
+	"type": "module",
+	"exports": {
+		".": "./dist/index.js",
+		"./types": "./dist/types.js",
+		"./types/*": "./dist/types/*.js",
+		"./test/*": "./test/*.ts"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": ["dist"],
+	"repository": "https://github.com/jsxtools/dtcg-tools",
+	"bugs": "https://github.com/jsxtools/dtcg-tools/issues",
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false,
+	"keywords": ["design-tokens", "dtcg", "typescript", "types", "schema"],
+	"scripts": {
+		"build": "tsc",
+		"clean": "rm -rf dist coverage *.tsbuildinfo",
+		"format": "dprint fmt",
+		"format:check": "dprint check",
+		"lint": "biome check",
+		"lint:fix": "biome check --write",
+		"prepublishOnly": "npm run clean && npm run lint && npm run type-check && npm run build && npm run test:node",
+		"test": "npm run test:node && npm run test:chromium && npm run test:firefox && npm run test:webkit",
+		"test:chromium": "vitest run --browser.name=chromium",
+		"test:firefox": "vitest run --browser.name=firefox",
+		"test:node": "vitest run --config vitest.node.config.ts",
+		"test:webkit": "vitest run --browser.name=webkit",
+		"type-check": "tsc --noEmit",
+		"vitest": "vitest"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.6",
+		"@types/node": "22.19.13",
+		"@vitest/browser-playwright": "4.0.18",
+		"@vitest/coverage-istanbul": "4.0.18",
+		"@vitest/ui": "4.0.18",
+		"dprint": "0.52.0",
+		"playwright": "1.58.2",
+		"typescript": "5.9.3",
+		"vitest": "4.0.18"
+	}
+}

@@ -1,0 +1,70 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Run tests and collect coverage
+        id: tests
+        run: |
+          if npm test; then
+            echo "status=passing" >> $GITHUB_OUTPUT
+            echo "color=brightgreen" >> $GITHUB_OUTPUT
+          else
+            echo "status=failing" >> $GITHUB_OUTPUT
+            echo "color=red" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Generate badges
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # Parse coverage from lcov.info
+          if [ -f coverage/lcov.info ]; then
+            LINES_FOUND=$(grep -o 'LF:[0-9]*' coverage/lcov.info | awk -F: '{sum+=$2} END {print sum}')
+            LINES_HIT=$(grep -o 'LH:[0-9]*' coverage/lcov.info | awk -F: '{sum+=$2} END {print sum}')
+            PERCENTAGE=$(awk "BEGIN {printf \"%.1f\", ($LINES_HIT/$LINES_FOUND)*100}")
+          else
+            PERCENTAGE="0"
+          fi
+
+          if (( $(echo "$PERCENTAGE >= 90" | bc -l) )); then
+            COV_COLOR="brightgreen"
+          elif (( $(echo "$PERCENTAGE >= 80" | bc -l) )); then
+            COV_COLOR="yellow"
+          else
+            COV_COLOR="red"
+          fi
+
+          # Create orphan branch for badges
+          git checkout --orphan badges || git checkout badges
+          git rm -rf . 2>/dev/null || true
+
+          # Create both badges
+          echo "{\"schemaVersion\": 1, \"label\": \"tests\", \"message\": \"${{ steps.tests.outputs.status }}\", \"color\": \"${{ steps.tests.outputs.color }}\"}" > tests.json
+          echo "{\"schemaVersion\": 1, \"label\": \"coverage\", \"message\": \"${PERCENTAGE}%\", \"color\": \"${COV_COLOR}\"}" > coverage.json
+
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add tests.json coverage.json
+          git commit -m "Update badges"
+          git push origin badges --force

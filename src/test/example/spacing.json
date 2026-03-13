@@ -1,0 +1,30 @@
+{
+	"$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+	"spacing": {
+		"$type": "number",
+		"$extensions": {
+			"ai.reve.custom-unit": "{base.spacing}"
+		},
+		"2x-small": {
+			"$value": 0.5
+		},
+		"x-small": {
+			"$value": 1
+		},
+		"small": {
+			"$value": 1.5
+		},
+		"medium": {
+			"$value": 2
+		},
+		"large": {
+			"$value": 2.5
+		},
+		"x-large": {
+			"$value": 3
+		},
+		"2x-large": {
+			"$value": 4
+		}
+	}
+}

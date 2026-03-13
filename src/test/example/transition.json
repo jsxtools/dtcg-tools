@@ -1,0 +1,36 @@
+{
+	"$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+	"transition": {
+		"$type": "duration",
+		"x-slow": {
+			"$value": {
+				"value": 500,
+				"unit": "ms"
+			}
+		},
+		"slow": {
+			"$value": {
+				"value": 200,
+				"unit": "ms"
+			}
+		},
+		"medium": {
+			"$value": {
+				"value": 150,
+				"unit": "ms"
+			}
+		},
+		"fast": {
+			"$value": {
+				"value": 100,
+				"unit": "ms"
+			}
+		},
+		"x-fast": {
+			"$value": {
+				"value": 50,
+				"unit": "ms"
+			}
+		}
+	}
+}

@@ -1,0 +1,19 @@
+{
+	"$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+	"component": {
+		"panel": {
+			"$extensions": {
+				"ai.reve.root": true
+			},
+			"background-color": {
+				"$type": "color",
+				"light": {
+					"$value": "{color.neutral.0.light}"
+				},
+				"dark": {
+					"$value": "{color.neutral.100.dark}"
+				}
+			}
+		}
+	}
+}

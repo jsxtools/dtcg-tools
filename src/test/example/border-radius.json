@@ -1,0 +1,30 @@
+{
+	"$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+	"border-radius": {
+		"$type": "dimension",
+		"full": {
+			"$value": {
+				"value": 9999,
+				"unit": "px"
+			}
+		},
+		"large": {
+			"$value": {
+				"value": 8,
+				"unit": "px"
+			}
+		},
+		"x-large": {
+			"$value": {
+				"value": 16,
+				"unit": "px"
+			}
+		},
+		"2x-large": {
+			"$value": {
+				"value": 24,
+				"unit": "px"
+			}
+		}
+	}
+}

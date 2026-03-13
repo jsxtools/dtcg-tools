@@ -1,0 +1,30 @@
+{
+	"$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+	"focus-ring": {
+		"$type": "border",
+		"$root": {
+			"$value": {
+				"color": "{base.transparent}",
+				"width": {
+					"value": 2,
+					"unit": "px"
+				},
+				"style": "solid"
+			}
+		},
+		"light": {
+			"$value": {
+				"color": "{color.blue.600.light}",
+				"width": "{focus-ring.width}",
+				"style": "{focus-ring.style}"
+			}
+		},
+		"dark": {
+			"$value": {
+				"color": "{color.blue.600.dark}",
+				"width": "{focus-ring.width}",
+				"style": "{focus-ring.style}"
+			}
+		}
+	}
+}

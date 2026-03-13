@@ -1,0 +1,159 @@
+{
+	"$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+	"font": {
+		"color": {
+			"$type": "color",
+			"normal": {
+				"light": {
+					"$value": "{color.alpha.1000.light}"
+				},
+				"dark": {
+					"$value": "{color.alpha.1000.dark}"
+				}
+			},
+			"light": {
+				"light": {
+					"$value": "{color.alpha.900.light}"
+				},
+				"dark": {
+					"$value": "{color.alpha.900.dark}"
+				}
+			},
+			"lighter": {
+				"light": {
+					"$value": "{color.alpha.800.light}"
+				},
+				"dark": {
+					"$value": "{color.alpha.800.dark}"
+				}
+			}
+		},
+		"family": {
+			"$type": "fontFamily",
+			"mono": {
+				"$value": ["ReveSansMono", "SFMono-Regular", "Consolas", "Liberation Mono", "Menlo", "monospace"]
+			},
+			"sans": {
+				"$value": [
+					"ReveUI",
+					"forma-djr-micro",
+					"-apple-system",
+					"BlinkMacSystemFont",
+					"Segoe UI",
+					"Roboto",
+					"Helvetica",
+					"Arial",
+					"sans-serif",
+					"Apple Color Emoji",
+					"Segoe UI Emoji",
+					"Segoe UI Symbol"
+				]
+			},
+			"display": {
+				"$value": [
+					"ReveDisplay",
+					"forma-djr-micro",
+					"-apple-system",
+					"BlinkMacSystemFont",
+					"Segoe UI",
+					"Roboto",
+					"Helvetica",
+					"Arial",
+					"sans-serif",
+					"Apple Color Emoji",
+					"Segoe UI Emoji",
+					"Segoe UI Symbol"
+				]
+			},
+			"serif": {
+				"$value": ["Georgia", "Times New Roman", "serif"]
+			}
+		},
+		"weight": {
+			"$type": "fontWeight",
+			"normal": {
+				"$value": 400
+			},
+			"semibold": {
+				"$value": 500
+			},
+			"bold": {
+				"$value": 700
+			}
+		},
+		"size": {
+			"$type": "dimension",
+			"x-small": {
+				"$value": {
+					"value": 0.75,
+					"unit": "rem"
+				},
+				"$description": "12px"
+			},
+			"small": {
+				"$value": {
+					"value": 0.875,
+					"unit": "rem"
+				},
+				"$description": "14px"
+			},
+			"medium": {
+				"$value": {
+					"value": 1,
+					"unit": "rem"
+				},
+				"$description": "16px"
+			},
+			"large": {
+				"$value": {
+					"value": 1.125,
+					"unit": "rem"
+				},
+				"$description": "18px"
+			},
+			"x-large": {
+				"$value": {
+					"value": 1.25,
+					"unit": "rem"
+				},
+				"$description": "20px"
+			},
+			"2x-large": {
+				"$value": {
+					"value": 1.5,
+					"unit": "rem"
+				},
+				"$description": "24px"
+			},
+			"3x-large": {
+				"$value": {
+					"value": 2,
+					"unit": "rem"
+				},
+				"$description": "32px"
+			},
+			"4x-large": {
+				"$value": {
+					"value": 2.5,
+					"unit": "rem"
+				},
+				"$description": "40px"
+			}
+		},
+		"line-height": {
+			"$type": "number",
+			"$extensions": {
+				"ai.reve.root": true
+			},
+			"denser": {
+				"$value": 1.2
+			},
+			"normal": {
+				"$value": 1.5
+			},
+			"sparser": {
+				"$value": 2
+			}
+		}
+	}
+}
