@@ -70,7 +70,11 @@ export const mergeFormats = (formats: Format[], root?: RawObject, inheritedType?
 
 					if (subFormats.length > 0) {
 						// Pass along the current node's effective type so children can inherit it.
-						value = mergeFormats(subFormats as Format[], effectiveRoot, getNodeType());
+						const sub = mergeFormats(subFormats as Format[], effectiveRoot, getNodeType()) as unknown as RawObject;
+						// Leaf token: unwrap to the resolved value so callers get the value
+						// directly (e.g. tokens["box-shadow"].panel → shadow array, not { $type, $value }).
+						// Group nodes have no $value and pass through as-is.
+						value = "$value" in sub ? sub.$value : sub;
 					} else if (hasLeaf) {
 						// Deeply resolve aliases and $ref objects inside $value.
 						value = key === "$value" ? resolveDeep(leafValue, effectiveRoot) : leafValue;

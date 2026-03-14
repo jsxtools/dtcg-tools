@@ -4,14 +4,11 @@ const resolverURL = new URL("../src/test/example/design-tokens.resolver.json", i
 
 const { tokens } = load(resolverURL);
 
-// $ref objects and alias strings inside composite $value should be fully resolved
-const shadow = (tokens as any)["box-shadow"].panel.$value;
-console.log(JSON.stringify(shadow, null, 2));
+// Leaf token: should be the resolved value directly, no $type/$value wrapper
+console.log("panel shadow:", JSON.stringify((tokens as any)["box-shadow"].panel, null, 2));
 
-// Spot-check: components should be an array, not a { $ref: "…" } object
-const components = shadow[0].color.components;
-console.log("components resolved:", Array.isArray(components), components);
+// Group node: should still be a navigable object
+console.log("box-shadow group $type:", (tokens as any)["box-shadow"].$type);
 
-// Alias resolution: "{base.zero}" inside the shadow value should be a dimension object
-const offsetY = shadow[0].offsetY;
-console.log("offsetY resolved:", offsetY);
+// Alias resolution inside the value
+console.log("panel[0].offsetX:", (tokens as any)["box-shadow"].panel[0].offsetX);
