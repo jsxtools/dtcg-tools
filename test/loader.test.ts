@@ -4,6 +4,21 @@ import { LoaderHost, type LoadOptions, type LoadResult } from "../src/loader/ind
 import { mergeFormats } from "../src/loader/merge.ts";
 import { load, nodeSys } from "../src/loader/node.ts";
 import { getAtPath, parsePointer } from "../src/loader/pointer.ts";
+import {
+	typedBase,
+	typedBorderRadius,
+	typedColor,
+	typedComponentButton,
+	typedComponentIcon,
+	typedComponentPanel,
+	typedFocusRing,
+	typedFont,
+	typedResolver,
+	typedShadow,
+	typedSpacing,
+	typedTransition,
+	typedZIndex,
+} from "../src/test/example.ts";
 import type { Format } from "../src/types/format.ts";
 import type { Resolver } from "../src/types/resolver.ts";
 
@@ -212,6 +227,38 @@ describe("LoaderHost", () => {
 
 		expect(tokenMap["focus-ring"].light.width).toEqual(tokenMap["focus-ring"].$root.width);
 		expect(tokenMap["focus-ring"].light.style).toBe(tokenMap["focus-ring"].$root.style);
+		expect(tokenMap["focus-ring"].dark.width).toEqual({ value: 2, unit: "px" });
+		expect(tokenMap["focus-ring"].dark.style).toBe("solid");
+	});
+
+	it("load() resolves JSON Pointer refs with an href-keyed cache + string currentDirectory()", () => {
+		const base = "https://jsxtools.com/dtcg-tools/test/example/";
+		const cache: Record<string, string> = {
+			[`${base}design-tokens.resolver.json`]: JSON.stringify(typedResolver),
+			[`${base}base.json`]: JSON.stringify(typedBase),
+			[`${base}border-radius.json`]: JSON.stringify(typedBorderRadius),
+			[`${base}color.json`]: JSON.stringify(typedColor),
+			[`${base}component.button.json`]: JSON.stringify(typedComponentButton),
+			[`${base}component.icon.json`]: JSON.stringify(typedComponentIcon),
+			[`${base}component.panel.json`]: JSON.stringify(typedComponentPanel),
+			[`${base}focus-ring.json`]: JSON.stringify(typedFocusRing),
+			[`${base}font.json`]: JSON.stringify(typedFont),
+			[`${base}shadow.json`]: JSON.stringify(typedShadow),
+			[`${base}spacing.json`]: JSON.stringify(typedSpacing),
+			[`${base}transition.json`]: JSON.stringify(typedTransition),
+			[`${base}z-index.json`]: JSON.stringify(typedZIndex),
+		};
+
+		const { tokens } = new LoaderHost({
+			readFile(url) {
+				return cache[url.href];
+			},
+			currentDirectory() {
+				return base as unknown as URL;
+			},
+		} as any).load("design-tokens.resolver.json");
+
+		const tokenMap = tokens as Record<string, any>;
 		expect(tokenMap["focus-ring"].dark.width).toEqual({ value: 2, unit: "px" });
 		expect(tokenMap["focus-ring"].dark.style).toBe("solid");
 	});
