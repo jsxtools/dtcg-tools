@@ -21,6 +21,7 @@
 			"recommended": true,
 			"complexity": {
 				"noCommaOperator": "off",
+				"noStaticOnlyClass": "off",
 				"noThisInStatic": "off"
 			},
 			"style": {

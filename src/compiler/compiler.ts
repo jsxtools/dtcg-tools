@@ -117,3 +117,5 @@ const host = new CompilerHost({
 	include: ["src/test/example/*.resolver.json"],
 	exclude: ["node_modules"],
 });
+
+void host;

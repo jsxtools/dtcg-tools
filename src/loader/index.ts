@@ -2,18 +2,41 @@ import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 import type { Format } from "../types/format.js";
-import type { Resolver } from "../types/resolver.js";
 import type { Set } from "../types/resolver/set.js";
-
-import { getAtPath, parsePointer } from "./pointer.js";
+import type { Resolver } from "../types/resolver.js";
 import { mergeFormats } from "./merge.js";
+import { getAtPath, parsePointer } from "./pointer.js";
 
 // ─── Public Types ─────────────────────────────────────────────────────────────
+
+/**
+ * The I/O interface consumed by {@link LoaderHost}. Swap this out to run in
+ * any environment — browser, Deno, test sandbox, etc.
+ *
+ * @example Browser virtual filesystem
+ * const browserSys: LoaderSys = {
+ *   readFile: (url) => fileMap.get(url.href) ?? (() => { throw new Error(`Not found: ${url}`) })(),
+ *   currentDirectory: () => new URL("./", location.href),
+ * }
+ */
+export interface LoaderSys {
+	/** Reads the contents of the file at `url` and returns it as a UTF-8 string. */
+	readFile(url: URL): string;
+
+	/** Returns the base URL used when no explicit base is provided to {@link LoaderHost.load}. */
+	currentDirectory(): URL;
+}
+
+/** Default {@link LoaderSys} for Node.js — reads files with `readFileSync`. */
+export const nodeSys: LoaderSys = {
+	readFile: (url) => readFileSync(url, "utf8"),
+	currentDirectory: () => pathToFileURL(`${process.cwd()}/`),
+};
 
 export interface LoadOptions {
 	/**
 	 * Base URL (or absolute path) used to resolve relative file references inside
-	 * a resolver document. Defaults to `file://{process.cwd()}/` when omitted.
+	 * a resolver document. Defaults to {@link LoaderSys.currentDirectory} when omitted.
 	 */
 	base?: URL | string;
 }
@@ -32,17 +55,25 @@ export interface LoadResult {
  * A stateful DTCG loader that caches every JSON file it reads.
  * Reuse a single `LoaderHost` instance across multiple `load()` calls to share
  * the cache and avoid re-reading the same files.
+ *
+ * Pass a custom {@link LoaderSys} to run outside of Node.js.
  */
 export class LoaderHost {
+	readonly sys: LoaderSys;
+
 	/** Parsed JSON values, keyed by URL href. */
 	#cache = new Map<string, unknown>();
+
+	constructor(sys: LoaderSys = nodeSys) {
+		this.sys = sys;
+	}
 
 	/** Reads and JSON-parses a file at `url`, caching the result by href. */
 	readJSON<T>(url: URL): T {
 		const { href } = url;
 
 		if (!this.#cache.has(href)) {
-			this.#cache.set(href, JSON.parse(readFileSync(url, "utf8")));
+			this.#cache.set(href, JSON.parse(this.sys.readFile(url)));
 		}
 
 		return this.#cache.get(href) as T;
@@ -60,7 +91,7 @@ export class LoaderHost {
 	 * merged into the final token tree.
 	 */
 	load(input: string | URL | Resolver, options?: LoadOptions): LoadResult {
-		const defaultBase = pathToFileURL(`${process.cwd()}/`);
+		const defaultBase = this.sys.currentDirectory();
 		let resolver: Resolver;
 		let resolverBase: URL;
 
@@ -109,7 +140,7 @@ export class LoaderHost {
  * For repeated loads, prefer {@link LoaderHost} to share the internal file cache.
  */
 export const load = (input: string | URL | Resolver, options?: LoadOptions): LoadResult =>
-	new LoaderHost().load(input, options);
+	new LoaderHost(nodeSys).load(input, options);
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 

@@ -7,5 +7,8 @@
 	"editor.insertSpaces": false,
 	"editor.tabSize": 4,
 	"json.schemaDownload.enable": true,
-	"js/ts.tsdk.path": "node_modules/typescript/lib"
+	"js/ts.tsdk.path": "node_modules/typescript/lib",
+	"[typescript]": {
+		"editor.defaultFormatter": "vscode.typescript-language-features"
+	}
 }

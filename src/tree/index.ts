@@ -1,5 +1,5 @@
-import type { Format } from "../types/format.js";
 import type { TokenType, TokenValue } from "../types/format/tokenType.js";
+import type { Format } from "../types/format.js";
 
 const nodeInspect = Symbol.for("nodejs.util.inspect.custom");
 
@@ -22,9 +22,8 @@ export class TokenLeaf {
 		this.value = value;
 	}
 
-	[nodeInspect](_depth: number, options: object) {
-		const { inspect } = require("node:util");
-		return `TokenLeaf ${inspect({ type: this.type, value: this.value }, options)}`;
+	[nodeInspect]() {
+		return Object.assign(new (class TokenLeaf {})(), { type: this.type, value: this.value });
 	}
 }
 
@@ -53,9 +52,8 @@ export class TokenGroup {
 		return this.#children.entries();
 	}
 
-	[nodeInspect](_depth: number, options: object) {
-		const { inspect } = require("node:util");
-		return `TokenGroup ${inspect(Object.fromEntries(this.#children), options)}`;
+	[nodeInspect]() {
+		return Object.assign(new (class TokenGroup {})(), Object.fromEntries(this.#children));
 	}
 }
 
@@ -82,7 +80,8 @@ const buildGroup = (raw: RawObject, parentType: string | undefined): TokenGroup 
 	const ownType = typeof raw.$type === "string" ? raw.$type : parentType;
 	const children = new Map<string, TokenNode>();
 
-	for (const [key, val] of Object.entries(raw)) {
+	for (const key in raw) {
+		const val = raw[key];
 		if (key.startsWith("$") || !isObject(val)) continue;
 
 		children.set(
