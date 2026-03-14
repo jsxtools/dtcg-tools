@@ -58,7 +58,6 @@ export class LoaderHost {
 	/** Parsed JSON values, keyed by URL href. */
 	#cache = new Map<string, unknown>();
 
-	/** Stores the loader system implementation. */
 	constructor(sys: LoaderSys) {
 		this.sys = sys;
 	}
@@ -83,7 +82,7 @@ export class LoaderHost {
 			// caller-supplied base). Using new URL(str, base) handles both absolute
 			// file paths (e.g. "/Users/…") and relative strings correctly on all
 			// platforms without requiring Node's pathToFileURL.
-			const resolverURL = new URL(input.toString(), toBaseURL(options?.base, defaultBase));
+			const resolverURL = new URL(input, toBaseURL(options?.base, defaultBase));
 			resolver = this.readJSON<Resolver>(resolverURL);
 			// Strip the filename so sibling $refs inside the resolver resolve correctly.
 			resolverBase = new URL(".", resolverURL);

@@ -5,20 +5,7 @@ import { LoaderHost, type LoaderSys, type LoadOptions, type LoadResult } from ".
 
 // ─── Node.js LoaderSys ────────────────────────────────────────────────────────
 
-/**
- * {@link LoaderSys} implementation for Node.js. Reads files synchronously
- * from the local filesystem using `fs.readFileSync`.
- *
- * This is NOT browser-safe — import it only from Node.js entry points.
- * For browser environments, provide your own {@link LoaderSys} that reads
- * from a virtual filesystem, network, or other source.
- *
- * @example Browser replacement
- * const browserSys: LoaderSys = {
- *   readFile: (url) => fileMap.get(url.href) ?? (() => { throw new Error(`Not found: ${url}`) })(),
- *   currentDirectory: () => new URL("./", location.href),
- * };
- */
+/** Node.js {@link LoaderSys} — reads files synchronously via `fs.readFileSync`. */
 export const nodeSys: LoaderSys = {
 	/** Reads a UTF-8 file from disk. */
 	readFile: (url) => readFileSync(url, "utf8"),
