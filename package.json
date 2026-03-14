@@ -9,7 +9,6 @@
 	"exports": {
 		".": "./dist/index.js",
 		"./loader": "./dist/loader/index.js",
-		"./tree": "./dist/tree/index.js",
 		"./types": "./dist/types.js",
 		"./types/*": "./dist/types/*.js",
 		"./test/*": "./test/*.ts"

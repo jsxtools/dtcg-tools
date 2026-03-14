@@ -1,100 +1,124 @@
 import type { Format } from "../types/format.js";
 
 /**
- * Lazily merges an ordered array of DTCG {@link Format} objects into a single
- * combined token tree via a {@link Proxy}. Sources are applied left-to-right;
+ * Merges an ordered array of DTCG {@link Format} objects into a single
+ * combined token tree using lazy getters. Sources are applied left-to-right;
  * later entries override earlier ones at leaf (non-object) positions, while
  * nested groups are recursively merged so siblings from different sources are
- * preserved. No allocation occurs until a property is actually accessed.
+ * preserved. Token aliases (`"{dot.path}"` strings in `$value`) are resolved
+ * on access against the root of the merged tree, and `$type` is inherited from
+ * ancestor groups when not declared on the token itself.
  *
  * @example
  * mergeFormats([
  *   { color: { red: { $type: "color", $value: "…" } } },
  *   { color: { blue: { $type: "color", $value: "…" } } },
  * ])
- * // → proxy that lazily produces { color: { red: { … }, blue: { … } } }
+ * // → { color: { red: { … }, blue: { … } } }
  */
-export const mergeFormats = (formats: Format[]): Format => {
-	const handler: ProxyHandler<object> = {
-		get(_target, key) {
-			if (typeof key !== "string") return undefined;
+export const mergeFormats = (formats: Format[], root?: RawObject, inheritedType?: string): Format => {
+	const merged = Object.create(null) as RawObject;
+	const effectiveRoot = root ?? merged;
 
-			const subFormats: Format[] = [];
-			let leafValue: unknown;
-			let hasLeaf = false;
+	// ── Collect every key that appears in any source ───────────────────────────
+	const keys = new Set<string>();
+	for (const format of formats) {
+		for (const key in format as RawObject) keys.add(key);
+	}
 
-			for (const format of formats) {
-				const val = (format as Record<string, unknown>)[key];
-				if (val === undefined) continue;
+	// Expose inherited $type even if no source in this node defines one.
+	if (!keys.has("$type") && inheritedType !== undefined) keys.add("$type");
 
-				if (isPlainObject(val)) {
-					subFormats.push(val as Format);
-				} else {
-					// A later leaf (primitive or array) wins; discard accumulated sub-objects.
-					subFormats.length = 0;
-					leafValue = val;
-					hasLeaf = true;
-				}
-			}
-
-			if (subFormats.length > 0) return mergeFormats(subFormats);
-			if (hasLeaf) return leafValue;
-			return undefined;
-		},
-
-		has(_target, key) {
-			if (typeof key !== "string") return false;
-			return formats.some((f) => key in (f as object));
-		},
-
-		ownKeys() {
-			const keys = new Set<string>();
-
-			for (const format of formats) {
-				for (const key in format) {
-					keys.add(key);
-				}
-			}
-
-			return [...keys];
-		},
-
-		getOwnPropertyDescriptor(_target, key) {
-			if (typeof key !== "string") return undefined;
-			const exists = formats.some((f) => Object.hasOwn(f as object, key));
-			if (!exists) return undefined;
-			return { configurable: true, enumerable: true, writable: false, value: undefined };
-		},
+	// ── Helper: effective $type for this node (own wins over inherited) ────────
+	const getNodeType = (): string | undefined => {
+		let ownType: string | undefined;
+		for (const format of formats) {
+			const t = (format as RawObject).$type;
+			if (typeof t === "string") ownType = t;
+		}
+		return ownType ?? inheritedType;
 	};
 
-	// Each call gets a fresh subclass so its prototype slot is independent.
-	return NullProxy.from(handler) as unknown as Format;
+	// ── Define a lazy getter for every key ────────────────────────────────────
+	for (const key of keys) {
+		Object.defineProperty(merged, key, {
+			get(): unknown {
+				// $type: own value, or fall back to the inherited type.
+				if (key === "$type") return getNodeType();
+
+				const subFormats: RawObject[] = [];
+				let leafValue: unknown;
+				let hasLeaf = false;
+
+				for (const format of formats) {
+					const val = (format as RawObject)[key];
+					if (val === undefined) continue;
+
+					if (isPlainObject(val)) {
+						subFormats.push(val);
+					} else {
+						// A later leaf (primitive or array) wins; reset sub-objects.
+						subFormats.length = 0;
+						leafValue = val;
+						hasLeaf = true;
+					}
+				}
+
+				if (subFormats.length > 0) {
+					// Pass along the current node's effective type so children can inherit it.
+					return mergeFormats(subFormats as Format[], effectiveRoot, getNodeType());
+				}
+
+				if (hasLeaf) {
+					// Resolve DTCG alias strings in $value lazily against the merged root.
+					if (key === "$value" && isAlias(leafValue)) {
+						return resolveAlias(leafValue, effectiveRoot);
+					}
+					return leafValue;
+				}
+
+				return undefined;
+			},
+			enumerable: true,
+			configurable: true,
+		});
+	}
+
+	return merged as unknown as Format;
 };
-
-// ─── NullProxy ────────────────────────────────────────────────────────────────
-
-/**
- * A base class whose instances have no default own properties and whose
- * prototype chain routes all property access through a caller-supplied
- * {@link ProxyHandler}. Callers should subclass and call `.from(handler)` on
- * the subclass so each merged view gets an isolated prototype slot.
- */
-
-class NullProxy {
-	static {
-		// @ts-expect-error to fully nullify the prototype
-		delete NullProxy.prototype.constructor;
-	}
-
-	static from(handler: ProxyHandler<object>): NullProxy {
-		return new Proxy(Object.create(null) as object, handler);
-		// Object.setPrototypeOf(this.prototype, new Proxy(Object.create(null) as object, handler));
-
-		// return new this;
-	}
-}
 
 // ─── Internal ─────────────────────────────────────────────────────────────────
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-	value !== null && typeof value === "object" && !Array.isArray(value);
+type RawObject = Record<string, unknown>;
+
+const isPlainObject = (v: unknown): v is RawObject =>
+	v !== null && typeof v === "object" && !Array.isArray(v);
+
+const isAlias = (v: unknown): v is string =>
+	typeof v === "string" && v.startsWith("{") && v.endsWith("}");
+
+// Module-level cycle-detection set (safe because JS is single-threaded).
+const resolvingAliases = new Set<string>();
+
+/**
+ * Resolves a DTCG alias string (e.g. `"{color.blue.800}"`) against the merged
+ * root, returning the target token's `$value`. Returns `undefined` on missing
+ * paths or detected cycles.
+ */
+const resolveAlias = (alias: string, root: RawObject): unknown => {
+	const path = alias.slice(1, -1); // strip { }
+	if (resolvingAliases.has(path)) return undefined; // cycle guard
+	resolvingAliases.add(path);
+	try {
+		let node: unknown = root;
+		for (const seg of path.split(".")) {
+			if (!isPlainObject(node)) return undefined;
+			node = node[seg];
+		}
+		// Read $value from the target node — this triggers that node's own getter,
+		// so chains of aliases resolve automatically.
+		return isPlainObject(node) && "$value" in node ? node.$value : undefined;
+	} finally {
+		resolvingAliases.delete(path);
+	}
+};

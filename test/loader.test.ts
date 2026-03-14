@@ -9,13 +9,6 @@ import type { Resolver } from "../src/types/resolver.ts";
 const exampleDir = new URL("../src/test/example/", import.meta.url);
 const resolverURL = new URL("design-tokens.resolver.json", exampleDir);
 
-/** Collects all keys visible via for…in (own + inherited enumerable), including proxy traps. */
-const keysOf = (obj: object): string[] => {
-	const keys: string[] = [];
-	for (const key in obj) keys.push(key);
-	return keys;
-};
-
 // ─── parsePointer ─────────────────────────────────────────────────────────────
 
 describe("parsePointer", () => {
@@ -62,22 +55,20 @@ describe("getAtPath", () => {
 // ─── mergeFormats ─────────────────────────────────────────────────────────────
 
 describe("mergeFormats", () => {
-	it("returns an empty proxy for an empty array", () => {
-		// The proxy has no own keys, so it looks identical to {} for key-based equality.
-		const result = mergeFormats([]);
-		expect(keysOf(result)).toEqual([]);
+	it("returns an empty object for an empty array", () => {
+		expect(Object.keys(mergeFormats([]))).toEqual([]);
 	});
 
 	it("passes a single source through without mutation", () => {
 		const format = { spacing: { md: { $value: 8 } } } as Format;
-		expect(mergeFormats([format])).toMatchObject(format);
+		expect(mergeFormats([format])).toEqual(format);
 		expect(mergeFormats([format])).not.toBe(format);
 	});
 
 	it("deeply merges sibling groups from different sources", () => {
 		const a = { color: { red: { $value: "#f00" } } } as Format;
 		const b = { color: { blue: { $value: "#00f" } } } as Format;
-		expect(mergeFormats([a, b])).toMatchObject({
+		expect(mergeFormats([a, b])).toEqual({
 			color: { red: { $value: "#f00" }, blue: { $value: "#00f" } },
 		});
 	});
@@ -85,13 +76,13 @@ describe("mergeFormats", () => {
 	it("later sources override leaf values", () => {
 		const a = { spacing: { md: { $value: 8 } } } as Format;
 		const b = { spacing: { md: { $value: 16 } } } as Format;
-		expect(mergeFormats([a, b])).toMatchObject({ spacing: { md: { $value: 16 } } });
+		expect(mergeFormats([a, b])).toEqual({ spacing: { md: { $value: 16 } } });
 	});
 
 	it("replaces arrays rather than merging them", () => {
 		const a = { font: { family: { $value: ["Arial"] } } } as Format;
 		const b = { font: { family: { $value: ["Helvetica", "Arial"] } } } as Format;
-		expect(mergeFormats([a, b])).toMatchObject({
+		expect(mergeFormats([a, b])).toEqual({
 			font: { family: { $value: ["Helvetica", "Arial"] } },
 		});
 	});
@@ -176,7 +167,7 @@ describe("load", () => {
 	it("returns identically to new LoaderHost().load()", () => {
 		const a = load(resolverURL);
 		const b = new LoaderHost().load(resolverURL);
-		expect(keysOf(a.tokens).sort()).toEqual(keysOf(b.tokens).sort());
+		expect(Object.keys(a.tokens).sort()).toEqual(Object.keys(b.tokens).sort());
 		expect(a.sources.map((s) => s.href)).toEqual(b.sources.map((s) => s.href));
 	});
 });
