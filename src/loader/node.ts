@@ -20,26 +20,13 @@ import { LoaderHost, type LoaderSys, type LoadOptions, type LoadResult } from ".
  * };
  */
 export const nodeSys: LoaderSys = {
+	/** Reads a UTF-8 file from disk. */
 	readFile: (url) => readFileSync(url, "utf8"),
+	/** Returns the current working directory as a file URL. */
 	currentDirectory: () => pathToFileURL(`${process.cwd()}/`),
 };
 
 // ─── Convenience export ───────────────────────────────────────────────────────
 
-/**
- * One-shot helper that loads and resolves a DTCG resolver document in Node.js.
- *
- * For repeated loads (e.g. a watch-mode build tool), prefer constructing a
- * {@link LoaderHost} directly and reusing it across calls to share the
- * internal file-read cache:
- *
- * ```ts
- * import { nodeSys } from "./node.js";
- * import { LoaderHost } from "./index.js";
- *
- * const host = new LoaderHost(nodeSys);
- * const result1 = host.load(resolverURL);
- * const result2 = host.load(otherResolverURL); // cache is shared
- * ```
- */
+/** Loads a resolver once using the default Node.js loader system. */
 export const load = (input: string | URL | Resolver, options?: LoadOptions): LoadResult => new LoaderHost(nodeSys).load(input, options);

@@ -15,15 +15,15 @@
 		"light": {
 			"$value": {
 				"color": "{color.blue.600.light}",
-				"width": "{focus-ring.width}",
-				"style": "{focus-ring.style}"
+				"width": { "$ref": "#/focus-ring/$root/$value/width" },
+				"style": { "$ref": "#/focus-ring/$root/$value/style" }
 			}
 		},
 		"dark": {
 			"$value": {
 				"color": "{color.blue.600.dark}",
-				"width": "{focus-ring.width}",
-				"style": "{focus-ring.style}"
+				"width": { "$ref": "#/focus-ring/$root/$value/width" },
+				"style": { "$ref": "#/focus-ring/$root/$value/style" }
 			}
 		}
 	}

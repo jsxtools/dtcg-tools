@@ -1,10 +1,4 @@
-/**
- * Parses a local JSON Pointer (RFC 6901) fragment into an array of path segments.
- * Only document-local pointers beginning with `#` are supported.
- *
- * @example parsePointer("#/sets/core") // ["sets", "core"]
- * @example parsePointer("#")           // []
- */
+/** Parses a local JSON Pointer fragment into path segments. */
 export const parsePointer = (pointer: string): string[] => {
 	if (pointer === "#") return [];
 
@@ -15,12 +9,7 @@ export const parsePointer = (pointer: string): string[] => {
 	return pointer.slice(2).split("/").map(decodeSegment);
 };
 
-/**
- * Traverses a document by an array of path segments, returning the value at
- * that location, or `undefined` if any step along the path is missing.
- *
- * @example getAtPath(doc, ["sets", "core"]) // doc.sets.core
- */
+/** Returns the value at a path or `undefined` when it is missing. */
 export const getAtPath = (root: unknown, path: readonly string[]): unknown => {
 	let node: unknown = root;
 
@@ -43,4 +32,5 @@ export const getAtPath = (root: unknown, path: readonly string[]): unknown => {
 /** Decodes a single RFC 6901 pointer segment (`~1` → `/`, `~0` → `~`). */
 const decodeSegment = (segment: string): string => segment.replaceAll("~1", "/").replaceAll("~0", "~");
 
+/** Returns `true` when a value is a non-array object. */
 const isObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);

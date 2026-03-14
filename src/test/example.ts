@@ -28,4 +28,4 @@ export const typedSpacing = plainSpacing satisfies Format;
 export const typedTransition = plainTransition satisfies Format;
 export const typedZIndex = plainZIndex satisfies Format;
 
-export const typedResolver = plainResolver satisfies Resolver;
+export const typedResolver = { ...plainResolver, version: "2025.10" } satisfies Resolver;

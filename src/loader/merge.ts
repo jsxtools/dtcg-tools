@@ -1,61 +1,111 @@
 import type { Format } from "../types/format.js";
+import { parsePointer } from "./pointer.js";
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-/**
- * Merges an ordered array of DTCG {@link Format} objects into a single token
- * tree with lazy resolution. Sources are applied left-to-right — later entries
- * override earlier ones at leaf positions while nested groups are recursively
- * merged so siblings from different sources coexist.
- *
- * **Lazy getters** — every property in the returned tree is a self-memoizing
- * getter. On first access it computes the value (resolving aliases, inheriting
- * `$type`, unwrapping `$value`), replaces itself with a plain data property,
- * and is never called again. The result is fully compatible with
- * `JSON.stringify` and `Object.keys`.
- *
- * **Alias resolution** — `"{dot.path}"` strings in `$value` are resolved
- * against the merged root. Chains resolve naturally because each getter fires
- * in turn as the tree is walked. Circular references return `undefined`.
- *
- * **Type inheritance** — `$type` declared on a group is automatically visible
- * on every descendant token that does not declare its own `$type`.
- *
- * **Unwrapping** — accessing a token path (e.g. `tokens.color.blue`) returns
- * its resolved value directly, not the `{ $type, $value }` wrapper object.
- *
- * @example
- * mergeFormats([
- *   { color: { red: { $type: "color", $value: "…" } } },
- *   { color: { blue: { $type: "color", $value: "…" } } },
- * ])
- * // → { color: { red: "…", blue: "…" } }
- */
-export const mergeFormats = (formats: Format[]): Format => buildNode(formats as RawObject[], undefined, undefined) as unknown as Format;
+/** Merges ordered formats into a single lazily resolved token tree. */
+export const mergeFormats = (formats: Format[]): Format =>
+	buildNode(formats as RawObject[], formats as RawObject[], undefined, undefined, []) as unknown as Format;
 
 // ─── Internal ─────────────────────────────────────────────────────────────────
 
 type RawObject = Record<string, unknown>;
 
+/** Returns `true` when a value is a plain object. */
 const isPlainObject = (v: unknown): v is RawObject => v !== null && typeof v === "object" && !Array.isArray(v);
+/** Returns `true` when a value is a DTCG alias string. */
 const isAlias = (v: unknown): v is string => typeof v === "string" && v.startsWith("{") && v.endsWith("}");
-const isRef = (v: unknown): v is { $ref: string } => isPlainObject(v) && typeof (v as RawObject).$ref === "string";
+/** Returns `true` when a value is a JSON reference object. */
+const isRef = (v: unknown): v is { $ref: string } => isPlainObject(v) && typeof v.$ref === "string";
+/** Converts a path array into a stable cycle-detection key. */
+const pathToId = (path: readonly string[]): string => path.join(".") || "#";
 
-/**
- * Builds a merged node from `formats`. The `root` parameter is the top-level
- * merged object shared by all recursive calls (used as the alias resolution
- * root). On the first call `root` is `undefined`; `buildNode` sets itself as
- * the root and propagates it downward.
- */
-const buildNode = (formats: RawObject[], root: RawObject | undefined, inheritedType: string | undefined): RawObject => {
+/** Collects nested object values for a key across merged formats. */
+const getSubFormats = (formats: readonly RawObject[], key: string): RawObject[] => {
+	const subFormats: RawObject[] = [];
+
+	for (const format of formats) {
+		const value = format[key];
+		if (value === undefined) continue;
+		if (isPlainObject(value)) {
+			subFormats.push(value);
+		} else {
+			subFormats.length = 0;
+		}
+	}
+
+	return subFormats;
+};
+
+/** Resolves all format objects that exist at a nested path. */
+const getFormatsAtPath = (formats: readonly RawObject[], path: readonly string[]): RawObject[] => {
+	let currentFormats = formats as RawObject[];
+
+	for (const segment of path) {
+		currentFormats = getSubFormats(currentFormats, segment);
+		if (currentFormats.length === 0) return [];
+	}
+
+	return currentFormats.some((format) => "$value" in format) ? [] : currentFormats;
+};
+
+/** Parses either an alias path or JSON Pointer path into segments. */
+const parseReferencePath = (reference: string): string[] | undefined => {
+	if (isAlias(reference)) return reference.slice(1, -1).split(".");
+	try {
+		return parsePointer(reference);
+	} catch {
+		return undefined;
+	}
+};
+
+const resolvingExtends = new Set<string>();
+
+/** Expands `$extends` references before a node is merged. */
+const expandFormats = (formats: readonly RawObject[], rootFormats: readonly RawObject[], path: readonly string[]): RawObject[] => {
+	const pathId = pathToId(path);
+	if (resolvingExtends.has(pathId)) return [];
+
+	resolvingExtends.add(pathId);
+	try {
+		const expandedFormats: RawObject[] = [];
+
+		for (const format of formats) {
+			const reference = typeof format.$extends === "string" ? format.$extends : undefined;
+			if (reference) {
+				const targetPath = parseReferencePath(reference);
+				if (targetPath) {
+					const targetFormats = getFormatsAtPath(rootFormats, targetPath);
+					expandedFormats.push(...expandFormats(targetFormats, rootFormats, targetPath));
+				}
+			}
+
+			expandedFormats.push(format);
+		}
+
+		return expandedFormats;
+	} finally {
+		resolvingExtends.delete(pathId);
+	}
+};
+
+/** Builds a merged lazy node for a specific format path. */
+const buildNode = (
+	formats: RawObject[],
+	rootFormats: RawObject[],
+	root: RawObject | undefined,
+	inheritedType: string | undefined,
+	path: string[],
+): RawObject => {
 	const node = Object.create(null) as RawObject;
 	// At the top level the node itself IS the resolution root; recursive calls
 	// receive the already-established root so all aliases resolve to the same tree.
 	const effectiveRoot = root ?? node;
+	const effectiveFormats = expandFormats(formats, rootFormats, path);
 
 	// Collect every key that appears across all sources.
 	const keys = new Set<string>();
-	for (const format of formats) {
+	for (const format of effectiveFormats) {
 		for (const key in format) keys.add(key);
 	}
 
@@ -64,14 +114,18 @@ const buildNode = (formats: RawObject[], root: RawObject | undefined, inheritedT
 	// only defined on the parent group.
 	if (!keys.has("$type") && inheritedType !== undefined) keys.add("$type");
 
-	// Lazily compute the effective $type for this node.
-	// The last source to declare a string $type wins; falls back to inherited.
+	/** Returns the effective `$type` for the current node. */
+	let nodeTypeResolved = false;
+	let nodeType: string | undefined;
 	const getNodeType = (): string | undefined => {
-		let ownType: string | undefined;
-		for (const format of formats) {
-			if (typeof format.$type === "string") ownType = format.$type;
+		if (!nodeTypeResolved) {
+			nodeTypeResolved = true;
+			for (const format of effectiveFormats) {
+				if (typeof format.$type === "string") nodeType = format.$type;
+			}
+			nodeType ??= inheritedType;
 		}
-		return ownType ?? inheritedType;
+		return nodeType;
 	};
 
 	// Define a self-memoizing getter for every key.
@@ -84,14 +138,14 @@ const buildNode = (formats: RawObject[], root: RawObject | undefined, inheritedT
 				let value: unknown = key === "$type" ? getNodeType() : undefined;
 
 				if (value === undefined && key !== "$type") {
-					// Partition sources for this key into sub-objects (groups/tokens)
-					// and leaf values (primitives/arrays). A later leaf resets any
-					// previously accumulated sub-objects because it fully overrides them.
+					// Single pass: partition sources for this key into sub-objects
+					// (groups/tokens) and leaf values. A later leaf resets any
+					// previously accumulated sub-objects (full override).
 					const subFormats: RawObject[] = [];
 					let leafValue: unknown;
 					let hasLeaf = false;
 
-					for (const format of formats) {
+					for (const format of effectiveFormats) {
 						const v = format[key];
 						if (v === undefined) continue;
 						if (isPlainObject(v)) {
@@ -110,7 +164,7 @@ const buildNode = (formats: RawObject[], root: RawObject | undefined, inheritedT
 						// the value object itself (e.g. a border's width inherits
 						// "border" from its parent, which is wrong).
 						const childType = key === "$value" ? undefined : getNodeType();
-						const sub = buildNode(subFormats, effectiveRoot, childType);
+						const sub = buildNode(subFormats, rootFormats, effectiveRoot, childType, [...path, key]);
 
 						if ("$value" in sub) {
 							// Leaf token: auto-unwrap so callers get the value directly
@@ -150,15 +204,7 @@ const buildNode = (formats: RawObject[], root: RawObject | undefined, inheritedT
 // never leaves stale entries that would permanently block re-resolution.
 const resolvingAliases = new Set<string>();
 
-/**
- * Resolves a DTCG alias string (e.g. `"{color.blue.800}"`) by walking the
- * dot-separated path against the merged root. Returns `undefined` when:
- * - the path does not exist in the tree, or
- * - a circular reference is detected.
- *
- * Chained aliases resolve naturally because each token's getter fires in
- * turn as we descend — there is no need for explicit multi-hop logic.
- */
+/** Resolves a DTCG alias string against the merged token tree. */
 const resolveAlias = (alias: string, root: RawObject): unknown => {
 	const path = alias.slice(1, -1); // strip surrounding { }
 	if (resolvingAliases.has(path)) return undefined; // circular reference guard
@@ -177,31 +223,34 @@ const resolveAlias = (alias: string, root: RawObject): unknown => {
 	}
 };
 
-/**
- * Resolves a JSON Reference string (e.g. `"#/base/alpha/dark/$value/components"`)
- * by walking the slash-separated path against the merged root. Returns `undefined`
- * for any missing segment. Silently skips `/$value/` segments that no longer
- * exist in the merged tree (DTCG document-pointer style vs. unwrapped runtime tree).
- */
+/** Resolves a JSON Pointer reference against the merged token tree. */
 const resolveRef = (ref: string, root: RawObject): unknown => {
-	if (!ref.startsWith("#/")) return undefined;
+	let path: string[];
+	try {
+		path = parsePointer(ref);
+	} catch {
+		return undefined;
+	}
+
 	let node: unknown = root;
-	for (const seg of ref.slice(2).split("/")) {
-		if (!isPlainObject(node)) return undefined;
+	for (const seg of path) {
 		// DTCG $ref paths are often written with "/$value/" as a literal path
 		// segment. Since the merged tree auto-unwraps $value, that key no longer
 		// exists at runtime — skip it so the walk lands in the resolved value.
-		if (seg === "$value" && !(seg in node)) continue;
-		node = node[seg];
+		if (isPlainObject(node)) {
+			if (seg === "$value" && !(seg in node)) continue;
+			node = node[seg];
+		} else if (Array.isArray(node)) {
+			const index = Number(seg);
+			node = Number.isInteger(index) ? node[index] : undefined;
+		} else {
+			return undefined;
+		}
 	}
 	return node;
 };
 
-/**
- * Recursively resolves DTCG aliases and `$ref` objects wherever they appear
- * inside a `$value` — including inside arrays and nested composite objects
- * such as shadows, borders, and gradients.
- */
+/** Recursively resolves aliases and `$ref` objects inside a `$value`. */
 const resolveDeep = (value: unknown, root: RawObject): unknown => {
 	if (isAlias(value)) return resolveAlias(value, root);
 	if (isRef(value)) return resolveRef(value.$ref, root);

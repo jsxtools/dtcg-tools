@@ -1,4 +1,4 @@
-import { load } from "./loader/index.js";
+import { load } from "./loader/node.js";
 
 const resolverURL = new URL("../src/test/example/design-tokens.resolver.json", import.meta.url);
 

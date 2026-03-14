@@ -89,6 +89,37 @@ describe("mergeFormats", () => {
 			font: { family: ["Helvetica", "Arial"] },
 		});
 	});
+
+	it("inherits group content via $extends and lets local values override it", () => {
+		const format = {
+			color: {
+				red: {
+					"500": { light: { $value: "#d00" } },
+					"600": { light: { $value: "#b00" } },
+				},
+				danger: {
+					$extends: "{color.red}",
+					"500": { light: { $value: "#c00" } },
+					"700": { light: { $value: "#900" } },
+				},
+			},
+		} as Format;
+
+		expect(mergeFormats([format])).toEqual({
+			color: {
+				red: {
+					"500": { light: "#d00" },
+					"600": { light: "#b00" },
+				},
+				danger: {
+					"500": { light: "#c00" },
+					"600": { light: "#b00" },
+					"700": { light: "#900" },
+					$extends: "{color.red}",
+				},
+			},
+		});
+	});
 });
 
 // ─── LoaderHost ───────────────────────────────────────────────────────────────
@@ -162,6 +193,28 @@ describe("LoaderHost", () => {
 		expect(sources).toHaveLength(0);
 		expect(tokens).toHaveProperty("spacing");
 	});
+
+	it("load() resolves group $extends from the example color tokens", () => {
+		const { tokens } = new LoaderHost(nodeSys).load(resolverURL);
+		const tokenMap = tokens as Record<string, any>;
+
+		expect(tokenMap.color.danger["500"].light).toEqual(tokenMap.color.red["500"].light);
+		expect(tokenMap.color.neutral["950"].dark).toEqual(tokenMap.color.gray["950"].dark);
+		expect(tokenMap.color.neutral["0"].light).toEqual({
+			colorSpace: "hsl",
+			components: [0, 0, 100],
+		});
+	});
+
+	it("load() resolves JSON Pointer property references inside composite values", () => {
+		const { tokens } = new LoaderHost(nodeSys).load(resolverURL);
+		const tokenMap = tokens as Record<string, any>;
+
+		expect(tokenMap["focus-ring"].light.width).toEqual(tokenMap["focus-ring"].$root.width);
+		expect(tokenMap["focus-ring"].light.style).toBe(tokenMap["focus-ring"].$root.style);
+		expect(tokenMap["focus-ring"].dark.width).toEqual({ value: 2, unit: "px" });
+		expect(tokenMap["focus-ring"].dark.style).toBe("solid");
+	});
 });
 
 // ─── load (convenience) ───────────────────────────────────────────────────────
@@ -179,12 +232,11 @@ describe("load", () => {
 
 describe("types", () => {
 	it("LoadResult has the expected shape", () => {
-		expectTypeOf<LoadResult["tokens"]>().toMatchTypeOf<Format>();
-		expectTypeOf<LoadResult["sources"]>().toMatchTypeOf<URL[]>();
+		expectTypeOf<LoadResult["tokens"]>().toEqualTypeOf<Format>();
+		expectTypeOf<LoadResult["sources"]>().toEqualTypeOf<URL[]>();
 	});
 
 	it("LoadOptions.base accepts both URL and string", () => {
-		expectTypeOf<URL>().toMatchTypeOf<LoadOptions["base"]>();
-		expectTypeOf<string>().toMatchTypeOf<LoadOptions["base"]>();
+		expectTypeOf<LoadOptions["base"]>().toEqualTypeOf<string | URL | undefined>();
 	});
 });

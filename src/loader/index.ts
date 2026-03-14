@@ -58,11 +58,12 @@ export class LoaderHost {
 	/** Parsed JSON values, keyed by URL href. */
 	#cache = new Map<string, unknown>();
 
+	/** Stores the loader system implementation. */
 	constructor(sys: LoaderSys) {
 		this.sys = sys;
 	}
 
-	/** Reads and JSON-parses the file at `url`, caching the result by href. */
+	/** Reads and caches parsed JSON from a URL. */
 	readJSON<T>(url: URL): T {
 		const { href } = url;
 		if (!this.#cache.has(href)) {
@@ -71,18 +72,7 @@ export class LoaderHost {
 		return this.#cache.get(href) as T;
 	}
 
-	/**
-	 * Loads a DTCG resolver document and returns the merged token tree plus the
-	 * list of external source files that were fetched.
-	 *
-	 * `input` may be:
-	 * - A string path or {@link URL} pointing to a resolver JSON file on disk (or network).
-	 * - An inline {@link Resolver} object — pair with `options.base` so that relative
-	 *   `$ref` paths inside it resolve to the right location.
-	 *
-	 * Resolution-order items that reference modifiers are skipped; only `set`
-	 * entries contribute to the merged token tree.
-	 */
+	/** Loads a resolver into merged tokens and resolved source URLs. */
 	load(input: string | URL | Resolver, options?: LoadOptions): LoadResult {
 		const defaultBase = this.sys.currentDirectory();
 		let resolver: Resolver;
@@ -126,7 +116,7 @@ export class LoaderHost {
 		return { tokens: mergeFormats(formats), sources };
 	}
 
-	/** Clears the file cache, forcing the next `load()` call to re-read every file. */
+	/** Clears the cached parsed JSON files. */
 	clearCache(): void {
 		this.#cache.clear();
 	}
@@ -134,11 +124,7 @@ export class LoaderHost {
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
-/**
- * Resolves an item from `resolutionOrder` to a concrete {@link Set} by
- * dereferencing any JSON Pointer. Returns `null` for modifier references and
- * any `$ref` that does not point to a set.
- */
+/** Resolves a resolution-order item to a concrete set or `null`. */
 const resolveSet = (item: Resolver["resolutionOrder"][number], resolver: Resolver): Set | null => {
 	if ("$ref" in item) {
 		const target = getAtPath(resolver, parsePointer(item.$ref));
@@ -147,16 +133,13 @@ const resolveSet = (item: Resolver["resolutionOrder"][number], resolver: Resolve
 	return item.type === "set" ? item : null;
 };
 
-const isSet = (v: unknown): v is Set => isObject(v) && Array.isArray((v as { sources?: unknown }).sources);
+/** Returns `true` when a value looks like a resolver set. */
+const isSet = (v: unknown): v is Set => isObject(v) && Array.isArray(v.sources);
 
+/** Returns `true` when a value is a non-array object. */
 const isObject = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
 
-/**
- * Converts `base` to a {@link URL}, falling back to `fallback` when `base` is
- * absent. String values are resolved against `fallback` so that both absolute
- * URLs (`"https://…"`) and absolute file paths (`"/Users/…"`) work correctly
- * without requiring Node's `pathToFileURL`.
- */
+/** Converts an optional base value into a resolved base URL. */
 const toBaseURL = (base: URL | string | undefined, fallback: URL): URL => {
 	if (base == null) return fallback;
 	if (base instanceof URL) return base;
