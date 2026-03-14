@@ -69,8 +69,10 @@ export const mergeFormats = (formats: Format[], root?: RawObject, inheritedType?
 					}
 
 					if (subFormats.length > 0) {
-						// Pass along the current node's effective type so children can inherit it.
-						const sub = mergeFormats(subFormats as Format[], effectiveRoot, getNodeType()) as unknown as RawObject;
+						// Pass the effective type down to group children so they can inherit it.
+						// Do NOT pass it into $value content — type is DTCG metadata on the token
+						// node itself, not something that should bleed into value sub-objects.
+						const sub = mergeFormats(subFormats as Format[], effectiveRoot, key === "$value" ? undefined : getNodeType()) as unknown as RawObject;
 						// Leaf token: unwrap to the resolved value so callers get the value
 						// directly (e.g. tokens["box-shadow"].panel → shadow array, not { $type, $value }).
 						// Group nodes have no $value and pass through as-is.
@@ -125,9 +127,10 @@ const resolveAlias = (alias: string, root: RawObject): unknown => {
 			if (!isPlainObject(node)) return undefined;
 			node = node[seg];
 		}
-		// Read $value from the target node — this triggers that node's own getter,
-		// so chains of aliases resolve automatically.
-		return isPlainObject(node) && "$value" in node ? node.$value : undefined;
+		// Token nodes are now auto-unwrapped, so the node after traversal IS the
+		// resolved value — return it directly. Chains resolve automatically because
+		// each getter fires in turn as we walk the tree.
+		return node;
 	} finally {
 		resolvingAliases.delete(path);
 	}
@@ -143,6 +146,11 @@ const resolveRef = (ref: string, root: RawObject): unknown => {
 	let node: unknown = root;
 	for (const seg of ref.slice(2).split("/")) {
 		if (!isPlainObject(node)) return undefined;
+		// $ref paths are often written with /$value/ as a literal segment (DTCG
+		// document-root pointer style). Since token nodes are auto-unwrapped in
+		// the merged tree, that key no longer exists — skip the segment so the
+		// walk continues into the already-resolved value.
+		if (seg === "$value" && !(seg in (node as RawObject))) continue;
 		node = (node as RawObject)[seg];
 	}
 	return node;

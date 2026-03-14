@@ -60,30 +60,32 @@ describe("mergeFormats", () => {
 	});
 
 	it("passes a single source through without mutation", () => {
+		// Leaf tokens are auto-unwrapped: { $value: 8 } → 8
 		const format = { spacing: { md: { $value: 8 } } } as Format;
-		expect(mergeFormats([format])).toEqual(format);
+		expect(mergeFormats([format])).toEqual({ spacing: { md: 8 } });
 		expect(mergeFormats([format])).not.toBe(format);
 	});
 
 	it("deeply merges sibling groups from different sources", () => {
 		const a = { color: { red: { $value: "#f00" } } } as Format;
 		const b = { color: { blue: { $value: "#00f" } } } as Format;
+		// Tokens unwrap to their resolved values; group nodes stay navigable.
 		expect(mergeFormats([a, b])).toEqual({
-			color: { red: { $value: "#f00" }, blue: { $value: "#00f" } },
+			color: { red: "#f00", blue: "#00f" },
 		});
 	});
 
 	it("later sources override leaf values", () => {
 		const a = { spacing: { md: { $value: 8 } } } as Format;
 		const b = { spacing: { md: { $value: 16 } } } as Format;
-		expect(mergeFormats([a, b])).toEqual({ spacing: { md: { $value: 16 } } });
+		expect(mergeFormats([a, b])).toEqual({ spacing: { md: 16 } });
 	});
 
 	it("replaces arrays rather than merging them", () => {
 		const a = { font: { family: { $value: ["Arial"] } } } as Format;
 		const b = { font: { family: { $value: ["Helvetica", "Arial"] } } } as Format;
 		expect(mergeFormats([a, b])).toEqual({
-			font: { family: { $value: ["Helvetica", "Arial"] } },
+			font: { family: ["Helvetica", "Arial"] },
 		});
 	});
 });
