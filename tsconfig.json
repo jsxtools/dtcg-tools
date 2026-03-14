@@ -5,8 +5,8 @@
 		"esModuleInterop": false,
 		"exactOptionalPropertyTypes": true,
 		"incremental": true,
-		"lib": ["ES2024"],
-		"module": "es2022",
+		"lib": ["ES2024", "WebWorker"],
+		"module": "preserve",
 		"moduleResolution": "bundler",
 		"outDir": "dist",
 		"preserveConstEnums": false,
@@ -15,8 +15,8 @@
 		"sourceMap": true,
 		"strict": true,
 		"target": "es2024",
-		"types": []
+		"types": ["node"]
 	},
-	"include": ["src/types.ts", "src/types/**/*.ts"],
+	"include": ["src/**/*"],
 	"exclude": ["node_modules"]
 }

@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { Format, Resolver, Token } from "../src/index.ts";
-import * as dtcgTools from "../src/index.ts";
+import type { Token } from "../src/types/format/token.ts";
+import type { Format, Resolver } from "../src/types.ts";
+import * as dtcgTools from "../src/types.ts";
 
 describe("package entrypoint", () => {
 	it("has no runtime exports", () => {
