@@ -47,11 +47,15 @@ export const mergeFormats = (formats: Format[]): Format => {
 			return formats.some((f) => key in (f as object));
 		},
 
-		ownKeys(_target) {
+		ownKeys() {
 			const keys = new Set<string>();
+
 			for (const format of formats) {
-				for (const key in format) keys.add(key);
+				for (const key in format) {
+					keys.add(key);
+				}
 			}
+
 			return [...keys];
 		},
 
@@ -64,8 +68,7 @@ export const mergeFormats = (formats: Format[]): Format => {
 	};
 
 	// Each call gets a fresh subclass so its prototype slot is independent.
-	const MergedFormat = class extends NullProxy {};
-	return MergedFormat.from(handler) as unknown as Format;
+	return NullProxy.from(handler) as unknown as Format;
 };
 
 // ─── NullProxy ────────────────────────────────────────────────────────────────
@@ -84,9 +87,10 @@ class NullProxy {
 	}
 
 	static from(handler: ProxyHandler<object>): NullProxy {
-		const proxy = new Proxy(Object.create(null) as object, handler);
-		Object.setPrototypeOf(this.prototype as object, proxy);
-		return Reflect.construct(this, []) as NullProxy;
+		return new Proxy(Object.create(null) as object, handler);
+		// Object.setPrototypeOf(this.prototype, new Proxy(Object.create(null) as object, handler));
+
+		// return new this;
 	}
 }
 
