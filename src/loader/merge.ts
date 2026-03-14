@@ -73,10 +73,18 @@ export const mergeFormats = (formats: Format[], root?: RawObject, inheritedType?
 						// Do NOT pass it into $value content — type is DTCG metadata on the token
 						// node itself, not something that should bleed into value sub-objects.
 						const sub = mergeFormats(subFormats as Format[], effectiveRoot, key === "$value" ? undefined : getNodeType()) as unknown as RawObject;
-						// Leaf token: unwrap to the resolved value so callers get the value
-						// directly (e.g. tokens["box-shadow"].panel → shadow array, not { $type, $value }).
-						// Group nodes have no $value and pass through as-is.
-						value = "$value" in sub ? sub.$value : sub;
+						if ("$value" in sub) {
+							// Leaf token: unwrap to the resolved value so callers get the value
+							// directly (e.g. tokens["focus-ring"].dark → border object, not { $type, $value }).
+							value = sub.$value;
+						} else if (key === "$value") {
+							// $value is a plain object (e.g. a border or color composite) — resolve
+							// any alias strings or $ref objects inside it, same as the array branch.
+							value = resolveDeep(sub, effectiveRoot);
+						} else {
+							// Group node: pass through as a navigable merged object.
+							value = sub;
+						}
 					} else if (hasLeaf) {
 						// Deeply resolve aliases and $ref objects inside $value.
 						value = key === "$value" ? resolveDeep(leafValue, effectiveRoot) : leafValue;

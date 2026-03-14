@@ -4,11 +4,8 @@ const resolverURL = new URL("../src/test/example/design-tokens.resolver.json", i
 
 const { tokens } = load(resolverURL);
 
-// Leaf token: should be the resolved value directly, no $type/$value wrapper
-console.log("panel shadow:", JSON.stringify((tokens as any)["box-shadow"].panel, null, 2));
+// focus-ring dark: alias "{color.blue.600.dark}" inside plain-object $value should resolve
+console.log("focus-ring dark:", JSON.stringify((tokens as any)["focus-ring"].dark, null, 2));
 
-// Group node: should still be a navigable object
-console.log("box-shadow group $type:", (tokens as any)["box-shadow"].$type);
-
-// Alias resolution inside the value
-console.log("panel[0].offsetX:", (tokens as any)["box-shadow"].panel[0].offsetX);
+// focus-ring light: same for light
+console.log("focus-ring light color:", (tokens as any)["focus-ring"].light?.color);
