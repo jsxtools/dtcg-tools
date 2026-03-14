@@ -39,45 +39,48 @@ export const mergeFormats = (formats: Format[], root?: RawObject, inheritedType?
 		return ownType ?? inheritedType;
 	};
 
-	// ── Define a lazy getter for every key ────────────────────────────────────
+	// ── Define a self-memoizing getter for every key ─────────────────────────
+	// On first access the getter computes the value, overwrites itself with a
+	// plain data property, and is never called again. After a single traversal
+	// the object is indistinguishable from a regular {}.
 	for (const key of keys) {
 		Object.defineProperty(merged, key, {
 			get(): unknown {
 				// $type: own value, or fall back to the inherited type.
-				if (key === "$type") return getNodeType();
+				let value: unknown = key === "$type" ? getNodeType() : undefined;
 
-				const subFormats: RawObject[] = [];
-				let leafValue: unknown;
-				let hasLeaf = false;
+				if (value === undefined && key !== "$type") {
+					const subFormats: RawObject[] = [];
+					let leafValue: unknown;
+					let hasLeaf = false;
 
-				for (const format of formats) {
-					const val = (format as RawObject)[key];
-					if (val === undefined) continue;
+					for (const format of formats) {
+						const val = (format as RawObject)[key];
+						if (val === undefined) continue;
 
-					if (isPlainObject(val)) {
-						subFormats.push(val);
-					} else {
-						// A later leaf (primitive or array) wins; reset sub-objects.
-						subFormats.length = 0;
-						leafValue = val;
-						hasLeaf = true;
+						if (isPlainObject(val)) {
+							subFormats.push(val);
+						} else {
+							// A later leaf (primitive or array) wins; reset sub-objects.
+							subFormats.length = 0;
+							leafValue = val;
+							hasLeaf = true;
+						}
+					}
+
+					if (subFormats.length > 0) {
+						// Pass along the current node's effective type so children can inherit it.
+						value = mergeFormats(subFormats as Format[], effectiveRoot, getNodeType());
+					} else if (hasLeaf) {
+						// Deeply resolve aliases and $ref objects inside $value.
+						value = key === "$value" ? resolveDeep(leafValue, effectiveRoot) : leafValue;
 					}
 				}
 
-				if (subFormats.length > 0) {
-					// Pass along the current node's effective type so children can inherit it.
-					return mergeFormats(subFormats as Format[], effectiveRoot, getNodeType());
-				}
-
-				if (hasLeaf) {
-					// Resolve DTCG alias strings in $value lazily against the merged root.
-					if (key === "$value" && isAlias(leafValue)) {
-						return resolveAlias(leafValue, effectiveRoot);
-					}
-					return leafValue;
-				}
-
-				return undefined;
+				// Replace this getter with the computed value so the object becomes
+				// a plain data property after first access.
+				Object.defineProperty(this, key, { value, enumerable: true, configurable: true });
+				return value;
 			},
 			enumerable: true,
 			configurable: true,
@@ -96,6 +99,9 @@ const isPlainObject = (v: unknown): v is RawObject =>
 
 const isAlias = (v: unknown): v is string =>
 	typeof v === "string" && v.startsWith("{") && v.endsWith("}");
+
+const isRef = (v: unknown): v is { $ref: string } =>
+	isPlainObject(v) && typeof (v as RawObject).$ref === "string";
 
 // Module-level cycle-detection set (safe because JS is single-threaded).
 const resolvingAliases = new Set<string>();
@@ -121,4 +127,35 @@ const resolveAlias = (alias: string, root: RawObject): unknown => {
 	} finally {
 		resolvingAliases.delete(path);
 	}
+};
+
+/**
+ * Resolves a JSON Reference string (e.g. `"#/base/alpha/dark/$value/components"`)
+ * against the merged root by walking the `/`-separated path literally.
+ * Returns `undefined` for any missing segment.
+ */
+const resolveRef = (ref: string, root: RawObject): unknown => {
+	if (!ref.startsWith("#/")) return undefined;
+	let node: unknown = root;
+	for (const seg of ref.slice(2).split("/")) {
+		if (!isPlainObject(node)) return undefined;
+		node = (node as RawObject)[seg];
+	}
+	return node;
+};
+
+/**
+ * Recursively resolves DTCG alias strings and `$ref` objects anywhere they
+ * appear inside a `$value` — including inside arrays and nested objects.
+ */
+const resolveDeep = (value: unknown, root: RawObject): unknown => {
+	if (isAlias(value)) return resolveAlias(value, root);
+	if (isRef(value)) return resolveRef(value.$ref, root);
+	if (Array.isArray(value)) return value.map(item => resolveDeep(item, root));
+	if (isPlainObject(value)) {
+		const out: RawObject = Object.create(null);
+		for (const k in value) out[k] = resolveDeep(value[k], root);
+		return out;
+	}
+	return value;
 };
