@@ -1,7 +1,8 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { LoaderHost, type LoadOptions, type LoadResult, load } from "../src/loader/index.ts";
+import { LoaderHost, type LoadOptions, type LoadResult } from "../src/loader/index.ts";
 import { mergeFormats } from "../src/loader/merge.ts";
+import { load, nodeSys } from "../src/loader/node.ts";
 import { getAtPath, parsePointer } from "../src/loader/pointer.ts";
 import type { Format } from "../src/types/format.ts";
 import type { Resolver } from "../src/types/resolver.ts";
@@ -94,32 +95,32 @@ describe("mergeFormats", () => {
 
 describe("LoaderHost", () => {
 	it("readJSON caches the same object instance per URL", () => {
-		const loader = new LoaderHost();
+		const loader = new LoaderHost(nodeSys);
 		const r1 = loader.readJSON(resolverURL);
 		const r2 = loader.readJSON(resolverURL);
 		expect(r1).toBe(r2);
 	});
 
 	it("clearCache forces readJSON to return a new object", () => {
-		const loader = new LoaderHost();
+		const loader = new LoaderHost(nodeSys);
 		const r1 = loader.readJSON(resolverURL);
 		loader.clearCache();
 		expect(loader.readJSON(resolverURL)).not.toBe(r1);
 	});
 
 	it("load() from a path string resolves all 12 sources", () => {
-		const { sources } = new LoaderHost().load(resolverURL.pathname);
+		const { sources } = new LoaderHost(nodeSys).load(resolverURL.pathname);
 		expect(sources).toHaveLength(12);
 		expect(sources.every((s) => s instanceof URL)).toBe(true);
 	});
 
 	it("load() from a URL resolves all 12 sources", () => {
-		const { sources } = new LoaderHost().load(resolverURL);
+		const { sources } = new LoaderHost(nodeSys).load(resolverURL);
 		expect(sources).toHaveLength(12);
 	});
 
 	it("load() produces a merged token tree containing all source groups", () => {
-		const { tokens } = new LoaderHost().load(resolverURL);
+		const { tokens } = new LoaderHost(nodeSys).load(resolverURL);
 		expect(tokens).toHaveProperty("base");
 		expect(tokens).toHaveProperty("color");
 		expect(tokens).toHaveProperty("spacing");
@@ -132,7 +133,7 @@ describe("LoaderHost", () => {
 			resolutionOrder: [{ name: "s", type: "set", sources: [{ $ref: "spacing.json" }] }],
 		};
 
-		const { tokens, sources } = new LoaderHost().load(resolver, { base: exampleDir });
+		const { tokens, sources } = new LoaderHost(nodeSys).load(resolver, { base: exampleDir });
 
 		expect(sources).toHaveLength(1);
 		expect(tokens).toHaveProperty("spacing");
@@ -144,7 +145,7 @@ describe("LoaderHost", () => {
 			modifiers: { theme: { contexts: { light: [], dark: [] } } },
 			resolutionOrder: [{ $ref: "#/modifiers/theme" }],
 		};
-		const { tokens, sources } = new LoaderHost().load(resolver);
+		const { tokens, sources } = new LoaderHost(nodeSys).load(resolver);
 		expect(sources).toHaveLength(0);
 		expect(tokens).toEqual({});
 	});
@@ -157,7 +158,7 @@ describe("LoaderHost", () => {
 			version: "2025.10",
 			resolutionOrder: [{ name: "inline", type: "set", sources: [format] }],
 		};
-		const { tokens, sources } = new LoaderHost().load(resolver);
+		const { tokens, sources } = new LoaderHost(nodeSys).load(resolver);
 		expect(sources).toHaveLength(0);
 		expect(tokens).toHaveProperty("spacing");
 	});
@@ -166,9 +167,9 @@ describe("LoaderHost", () => {
 // ─── load (convenience) ───────────────────────────────────────────────────────
 
 describe("load", () => {
-	it("returns identically to new LoaderHost().load()", () => {
+	it("returns identically to new LoaderHost(nodeSys).load()", () => {
 		const a = load(resolverURL);
-		const b = new LoaderHost().load(resolverURL);
+		const b = new LoaderHost(nodeSys).load(resolverURL);
 		expect(Object.keys(a.tokens).sort()).toEqual(Object.keys(b.tokens).sort());
 		expect(a.sources.map((s) => s.href)).toEqual(b.sources.map((s) => s.href));
 	});

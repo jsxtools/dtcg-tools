@@ -43,5 +43,4 @@ export const getAtPath = (root: unknown, path: readonly string[]): unknown => {
 /** Decodes a single RFC 6901 pointer segment (`~1` → `/`, `~0` → `~`). */
 const decodeSegment = (segment: string): string => segment.replaceAll("~1", "/").replaceAll("~0", "~");
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-	value !== null && typeof value === "object" && !Array.isArray(value);
+const isObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);

@@ -144,9 +144,9 @@ export interface LABColorValue {
 	components: [
 		/** Lightness: A number between 0 and 100 representing the percentage of lightness of the color. */
 		l: PercentageComponent,
-		/** A: A number between -128 and 127 representing the position of the color in the green-red axis. */
+		/** A: Theoretically unbounded signed number representing the green-red axis. In practice doesn't exceed −160 to 160. */
 		a: UnboundedComponent,
-		/** B: A number between -128 and 127 representing the position of the color in the blue-yellow axis. */
+		/** B: Theoretically unbounded signed number representing the blue-yellow axis. In practice doesn't exceed −160 to 160. */
 		b: UnboundedComponent,
 	];
 }
@@ -159,7 +159,7 @@ export interface LCHColorValue {
 		/** Chroma: A number representing the chroma of the color. Unbounded but in practice doesn't exceed 230. */
 		c: ChromaComponent,
 		/** Hue: A number from 0 up to (but not including) 360 representing the angle of the color on the color wheel. */
-		h: LCHColorValue,
+		h: HueComponent,
 	];
 }
 

@@ -21,9 +21,9 @@ export type Resolver = {
 	/**
 	 * **Version**
 	 *
-	 * Version of the resolver specification.
+	 * Version of the resolver specification. MUST be `"2025.10"`.
 	 */
-	version: string;
+	version: "2025.10";
 
 	/**
 	 * **Description**

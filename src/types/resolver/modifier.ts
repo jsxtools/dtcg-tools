@@ -1,4 +1,4 @@
-import type { Format, JSONPointerReference } from "../format.js";
+import type { Format } from "../format.js";
 
 /**
  * A modifier is similar to a set, but allows for conditional inclusion via the contexts map.
@@ -44,16 +44,18 @@ export interface Modifier {
  * **Reference Object (For Modifiers)**
  *
  * A reference object for use within modifier contexts.
- * Cannot point to other modifiers or resolutionOrder items.
+ * MAY be a relative URI to an external file (e.g. `"theme/light.json"`) or
+ * a same-document JSON Pointer to a set (e.g. `"#/sets/base"`).
+ * MUST NOT point to other modifiers or resolutionOrder items.
  */
 export type ReferenceObjectForModifiers = {
 	/**
-	 * **JSON Reference**
+	 * **Reference**
 	 *
-	 * A reference object for use within modifier contexts.
-	 * Cannot point to other modifiers or resolutionOrder items.
+	 * A URI reference: either a relative file path or a same-document JSON Pointer.
+	 * Per spec §4.2.1, MUST NOT reference another modifier or a resolutionOrder item.
 	 */
-	$ref: JSONPointerReference;
+	$ref: string;
 };
 
 /**

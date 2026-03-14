@@ -15,14 +15,22 @@
 	},
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"repository": "https://github.com/jsxtools/dtcg-tools",
 	"bugs": "https://github.com/jsxtools/dtcg-tools/issues",
 	"publishConfig": {
 		"access": "public"
 	},
 	"sideEffects": false,
-	"keywords": ["design-tokens", "dtcg", "typescript", "types", "schema"],
+	"keywords": [
+		"design-tokens",
+		"dtcg",
+		"typescript",
+		"types",
+		"schema"
+	],
 	"scripts": {
 		"build": "tsc",
 		"clean": "rm -rf dist coverage *.tsbuildinfo",
