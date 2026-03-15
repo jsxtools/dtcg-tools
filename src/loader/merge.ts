@@ -1,5 +1,6 @@
 import type { Format } from "../types/format.js";
 import { parsePointer } from "./pointer.js";
+import { RAW } from "./raw.js";
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -10,6 +11,16 @@ export const mergeFormats = (formats: Format[]): Format =>
 // ─── Internal ─────────────────────────────────────────────────────────────────
 
 type RawObject = Record<string, unknown>;
+
+/** Ensures `obj` has a non-enumerable RAW map and returns it. */
+const getRawMap = (obj: RawObject): RawObject => {
+	let map = (obj as any)[RAW] as unknown;
+	if (!isPlainObject(map)) {
+		map = Object.create(null) as RawObject;
+		Object.defineProperty(obj, RAW, { value: map, enumerable: false, configurable: true });
+	}
+	return map as RawObject;
+};
 
 /** Returns `true` when `v` is a non-array object. */
 const isPlainObject = (v: unknown): v is RawObject => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -161,12 +172,18 @@ const buildNode = (
 
 						if ("$value" in sub) {
 							value = sub.$value; // auto-unwrap leaf token
+							const raw = (sub as any)[RAW]?.$value;
+							if (raw !== undefined) getRawMap(this as unknown as RawObject)[key] = raw;
 						} else if (key === "$value") {
+							if (isRef(sub)) getRawMap(this as unknown as RawObject).$value = { $ref: sub.$ref };
 							value = resolveDeep(sub, effectiveRoot); // composite value
 						} else {
 							value = sub; // group sub-tree
 						}
 					} else if (hasLeaf) {
+						if (key === "$value" && (isAlias(leaf) || isRef(leaf))) {
+							getRawMap(this as unknown as RawObject).$value = isRef(leaf) ? { $ref: leaf.$ref } : leaf;
+						}
 						value = key === "$value" ? resolveDeep(leaf, effectiveRoot) : leaf;
 					}
 				}
@@ -237,7 +254,15 @@ const resolveDeep = (value: unknown, root: RawObject): unknown => {
 	if (Array.isArray(value)) return value.map((v) => resolveDeep(v, root));
 	if (isPlainObject(value)) {
 		const out: RawObject = Object.create(null);
-		for (const k in value) out[k] = resolveDeep(value[k], root);
+		let raw: RawObject | undefined;
+		for (const k in value) {
+			const v = value[k];
+			if (isAlias(v) || isRef(v)) {
+				raw ??= getRawMap(out);
+				raw[k] = isRef(v) ? { $ref: v.$ref } : v;
+			}
+			out[k] = resolveDeep(v, root);
+		}
 		return out;
 	}
 	return value;

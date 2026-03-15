@@ -4,6 +4,11 @@ import type { Resolver } from "../types/resolver.js";
 import { mergeFormats } from "./merge.js";
 import { getAtPath, parsePointer } from "./pointer.js";
 
+export { RAW } from "./raw.js";
+
+// Experimental Typed-OM-like API (everything is a node; refs preserved).
+export * from "./om.js";
+
 // ─── Public Types ─────────────────────────────────────────────────────────────
 
 /**

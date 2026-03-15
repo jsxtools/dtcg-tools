@@ -4,6 +4,7 @@ import { LoaderHost, type LoadOptions, type LoadResult } from "../src/loader/ind
 import { mergeFormats } from "../src/loader/merge.ts";
 import { load, nodeSys } from "../src/loader/node.ts";
 import { getAtPath, parsePointer } from "../src/loader/pointer.ts";
+import { RAW } from "../src/loader/raw.ts";
 import {
 	typedBase,
 	typedBorderRadius,
@@ -221,7 +222,7 @@ describe("LoaderHost", () => {
 		});
 	});
 
-	it("load() resolves JSON Pointer property references inside composite values", () => {
+	it("load() resolves curly-brace references inside composite values", () => {
 		const { tokens } = new LoaderHost(nodeSys).load(resolverURL);
 		const tokenMap = tokens as Record<string, any>;
 
@@ -229,6 +230,20 @@ describe("LoaderHost", () => {
 		expect(tokenMap["focus-ring"].light.style).toBe(tokenMap["focus-ring"].$root.style);
 		expect(tokenMap["focus-ring"].dark.width).toEqual({ value: 2, unit: "px" });
 		expect(tokenMap["focus-ring"].dark.style).toBe("solid");
+		expect(tokenMap["focus-ring"].dark[RAW]).toEqual({
+			color: "{color.blue.600.dark}",
+			width: { $ref: "#/focus-ring/$root/$value/width" },
+			style: { $ref: "#/focus-ring/$root/$value/style" },
+		});
+	});
+
+	it("load() resolves JSON Pointer property references inside composite values", () => {
+		const { tokens } = new LoaderHost(nodeSys).load(resolverURL);
+		const tokenMap = tokens as Record<string, any>;
+
+		// color.alpha.*.light/dark use $ref to point at base.alpha.*.components arrays
+		expect(tokenMap.color.alpha["50"].light.components).toEqual(tokenMap.base.alpha.dark.components);
+		expect(tokenMap.color.alpha["50"].dark.components).toEqual(tokenMap.base.alpha.light.components);
 	});
 
 	it("load() resolves JSON Pointer refs with an href-keyed cache + string currentDirectory()", () => {
