@@ -1,6 +1,5 @@
-import { load } from "./loader/node.js";
-import { OMLoaderHost, T, getToken, toJSONComputed } from "./loader/om.js";
-import { nodeSys } from "./loader/node.js";
+import { load, nodeSys } from "./loader/node.js";
+import { getToken, OMLoaderHost, T, toJSONComputed } from "./loader/om.js";
 
 const resolverURL = new URL("../src/test/example/design-tokens.resolver.json", import.meta.url);
 

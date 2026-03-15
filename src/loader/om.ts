@@ -1,7 +1,7 @@
 import type { Format } from "../types/format.js";
 import type { Resolver } from "../types/resolver.js";
+import type { LoaderSys, LoadOptions } from "./index.js";
 import { getAtPath, parsePointer } from "./pointer.js";
-import type { LoadOptions, LoaderSys } from "./index.js";
 
 /**
  * Experimental: a Typed-OM-like representation of DTCG tokens.
@@ -81,7 +81,7 @@ export type EvalContext = {
 	doc: GroupNode;
 	memo: WeakMap<object, ValueNode>;
 	resolving: Set<object>;
-	aliasMemo: WeakMap<object, string[] | ErrorNode>;
+	aliasMemo: WeakMap<object, string[]>;
 	pointerMemo: WeakMap<object, string[] | ErrorNode>;
 };
 
@@ -98,7 +98,7 @@ export const createEvalContext = (doc: GroupNode): EvalContext => ({
 export type PathLike = string | readonly string[];
 
 /** Splits a dot-path (`"a.b.c"`) into segments (or returns an existing segment array). */
-export const toDotPath = (path: PathLike): string[] => (typeof path === "string" ? (path ? path.split(".") : []) : [...path]);
+export const toDotPath = (path: PathLike): readonly string[] => (typeof path === "string" ? (path ? path.split(".") : []) : path);
 
 /** Returns the entry node (group or token) at a dot-path. */
 export const getEntry = (doc: GroupNode, path: PathLike): EntryNode | undefined => {
@@ -106,7 +106,7 @@ export const getEntry = (doc: GroupNode, path: PathLike): EntryNode | undefined 
 	let cur: EntryNode = doc;
 	for (const seg of segs) {
 		if (cur.t !== T.Group) return undefined;
-		const next: EntryNode | undefined = (cur as GroupNode).entries[seg];
+		const next: EntryNode | undefined = cur.entries[seg];
 		if (!next) return undefined;
 		cur = next;
 	}
@@ -127,8 +127,7 @@ export const getToken = (doc: GroupNode, path: PathLike): TokenNode | undefined 
 
 /** Returns any node reachable by a local JSON Pointer (string or segment array). */
 export const getNodeByPointer = (doc: GroupNode, pointer: string | readonly string[]): EntryNode | ValueNode | undefined => {
-	const segs = typeof pointer === "string" ? parsePointer(pointer) : [...pointer];
-	return getByPointer(doc, segs);
+	return getByPointer(doc, typeof pointer === "string" ? parsePointer(pointer) : pointer);
 };
 
 /** Returns a value node by pointer; if the pointer lands on a token, returns its `$value` node. */
@@ -197,8 +196,8 @@ export class OMLoaderHost {
 			if (set == null) continue;
 
 			for (const source of set.sources) {
-				if (isPlainObject(source) && typeof (source as any).$ref === "string") {
-					const url = new URL((source as any).$ref as string, resolverBase);
+				if (hasStringRef(source)) {
+					const url = new URL(source.$ref, resolverBase);
 					sources.push(url);
 					formats.push(this.readJSON<Format>(url));
 				} else {
@@ -223,6 +222,7 @@ type RawObject = Record<string, unknown>;
 
 const isPlainObject = (v: unknown): v is RawObject => v !== null && typeof v === "object" && !Array.isArray(v);
 const isAlias = (v: unknown): v is string => typeof v === "string" && v.startsWith("{") && v.endsWith("}");
+const hasStringRef = (v: unknown): v is { $ref: string } => isPlainObject(v) && typeof v.$ref === "string";
 const isPointerRefObject = (v: unknown): v is { $ref: string } => isPlainObject(v) && typeof v.$ref === "string" && Object.keys(v).length === 1;
 
 /** Collects sub-objects for `key` across formats, resetting on non-object override. */
@@ -246,7 +246,7 @@ const getFormatsAtPath = (formats: readonly RawObject[], path: readonly string[]
 		if (current.length === 0) return [];
 	}
 	// Stop: a token cannot be extended as a group.
-	return current.some((f) => "$value" in f || typeof (f as any).$ref === "string") ? [] : current;
+	return current.some((f) => "$value" in f || typeof f.$ref === "string") ? [] : current;
 };
 
 const parseReferencePath = (ref: string): string[] | undefined => {
@@ -268,7 +268,7 @@ const expandFormats = (formats: readonly RawObject[], rootFormats: readonly RawO
 	try {
 		const out: RawObject[] = [];
 		for (const format of formats) {
-			const ref = typeof format.$extends === "string" ? (format.$extends as string) : undefined;
+			const ref = typeof format.$extends === "string" ? format.$extends : undefined;
 			if (ref) {
 				const targetPath = parseReferencePath(ref);
 				if (targetPath) {
@@ -295,11 +295,11 @@ const buildEntry = (formats: RawObject[], rootFormats: RawObject[], inheritedTyp
 
 	let nodeType: string | undefined;
 	for (const fmt of effectiveFormats) {
-		if (typeof (fmt as any).$type === "string") nodeType = (fmt as any).$type as string;
+		if (typeof fmt.$type === "string") nodeType = fmt.$type;
 	}
 	nodeType ??= inheritedType;
 
-	const isToken = effectiveFormats.some((f) => "$value" in f || typeof (f as any).$ref === "string");
+	const isToken = effectiveFormats.some((f) => "$value" in f || typeof f.$ref === "string");
 	if (isToken) {
 		const rawValue = getEffectiveTokenValue(effectiveFormats);
 		const token: TokenNode = { t: T.Token, value: parseTokenValue(nodeType, rawValue) };
@@ -331,16 +331,17 @@ const getEffectiveTokenValue = (effectiveFormats: readonly RawObject[]): unknown
 	let hasLeaf = false;
 
 	for (const fmt of effectiveFormats) {
-		const ref = (fmt as any).$ref;
-		if (typeof ref === "string") {
+		if (typeof fmt.$ref === "string") {
 			valueObjs.length = 0;
-			leaf = { $ref: ref };
+			leaf = { $ref: fmt.$ref };
 			hasLeaf = true;
 		}
 
 		if ("$value" in fmt) {
-			const v = (fmt as any).$value as unknown;
+			const v = fmt.$value;
 			if (isPlainObject(v)) {
+				hasLeaf = false;
+				leaf = undefined;
 				valueObjs.push(v);
 			} else {
 				valueObjs.length = 0;
@@ -417,24 +418,19 @@ export const parseValue = (raw: unknown): ValueNode => {
 // ─── Evaluation ───────────────────────────────────────────────────────────────
 
 export const compute = (v: ValueNode, ctx: EvalContext): ValueNode => {
-	const key = v as unknown as object;
-	const cached = ctx.memo.get(key);
+	const cached = ctx.memo.get(v);
 	if (cached) return cached;
 
-	if (ctx.resolving.has(key)) return { t: T.Error, message: "circular reference" };
-	ctx.resolving.add(key);
+	if (ctx.resolving.has(v)) return { t: T.Error, message: "circular reference" };
+	ctx.resolving.add(v);
 
 	try {
 		let out: ValueNode = v;
 
 		if (v.t === T.AliasRef) {
 			const segs = aliasSegments(v, ctx);
-			if (isError(segs)) {
-				out = segs;
-			} else {
-				const tok = getTokenByPath(ctx.doc, segs);
-				out = tok ? compute(tok.value, ctx) : { t: T.Error, message: "alias target is not a token" };
-			}
+			const tok = getToken(ctx.doc, segs);
+			out = tok ? compute(tok.value, ctx) : { t: T.Error, message: "alias target is not a token" };
 		} else if (v.t === T.PointerRef) {
 			const segs = pointerSegments(v, ctx);
 			if (isError(segs)) {
@@ -450,10 +446,10 @@ export const compute = (v: ValueNode, ctx: EvalContext): ValueNode => {
 			}
 		}
 
-		ctx.memo.set(key, out);
+		ctx.memo.set(v, out);
 		return out;
 	} finally {
-		ctx.resolving.delete(key);
+		ctx.resolving.delete(v);
 	}
 };
 
@@ -502,7 +498,7 @@ export const toJSONComputed = (v: ValueNode, ctx: EvalContext): unknown => {
 		case T.Bool:
 		case T.Num:
 		case T.Str:
-			return (c as any).v;
+			return c.v;
 		case T.Arr:
 			return c.items.map((it) => toJSONComputed(it, ctx));
 		case T.Obj: {
@@ -525,44 +521,31 @@ export const toJSONComputed = (v: ValueNode, ctx: EvalContext): unknown => {
 
 // ─── Reference lookup ─────────────────────────────────────────────────────────
 
-const isError = (v: unknown): v is ErrorNode => typeof v === "object" && v !== null && (v as any).t === T.Error;
+const isError = (v: unknown): v is ErrorNode => typeof v === "object" && v !== null && (v as ErrorNode).t === T.Error;
 const isValueNode = (n: EntryNode | ValueNode): n is ValueNode => n.t !== T.Group && n.t !== T.Token;
 
-const aliasSegments = (n: AliasRefNode, ctx: EvalContext): string[] | ErrorNode => {
-	const cached = ctx.aliasMemo.get(n as unknown as object);
+/** AliasRefNode is only created for valid aliases, so parsing always succeeds. */
+const aliasSegments = (n: AliasRefNode, ctx: EvalContext): string[] => {
+	const cached = ctx.aliasMemo.get(n);
 	if (cached) return cached;
-
-	const raw = n.raw;
-	const segs = isAlias(raw) ? raw.slice(1, -1).split(".") : undefined;
-	const out: string[] | ErrorNode = segs ?? ({ t: T.Error, message: "invalid alias" } as ErrorNode);
-	ctx.aliasMemo.set(n as unknown as object, out);
-	return out;
+	const segs = n.raw.slice(1, -1).split(".");
+	ctx.aliasMemo.set(n, segs);
+	return segs;
 };
 
 const pointerSegments = (n: PointerRefNode, ctx: EvalContext): string[] | ErrorNode => {
-	const cached = ctx.pointerMemo.get(n as unknown as object);
+	const cached = ctx.pointerMemo.get(n);
 	if (cached) return cached;
 
 	try {
 		const segs = parsePointer(n.$ref);
-		ctx.pointerMemo.set(n as unknown as object, segs);
+		ctx.pointerMemo.set(n, segs);
 		return segs;
 	} catch {
 		const err: ErrorNode = { t: T.Error, message: "invalid JSON Pointer" };
-		ctx.pointerMemo.set(n as unknown as object, err);
+		ctx.pointerMemo.set(n, err);
 		return err;
 	}
-};
-
-const getTokenByPath = (doc: GroupNode, path: readonly string[]): TokenNode | undefined => {
-	let cur: EntryNode = doc;
-	for (const seg of path) {
-		if (cur.t !== T.Group) return undefined;
-		const next: EntryNode | undefined = cur.entries[seg];
-		if (!next) return undefined;
-		cur = next;
-	}
-	return cur.t === T.Token ? cur : undefined;
 };
 
 const getByPointer = (doc: GroupNode, ptr: readonly string[]): EntryNode | ValueNode | undefined => {
@@ -588,15 +571,15 @@ const getByPointer = (doc: GroupNode, ptr: readonly string[]): EntryNode | Value
 			return undefined;
 		}
 
-		// value node traversal
-		cur = getValueChild(cur, seg) ?? (undefined as any);
-		if (!cur) return undefined;
+		const next = getValueChild(cur, seg);
+		if (!next) return undefined;
+		cur = next;
 	}
 
 	return cur;
 };
 
-const getValueChild = (v: ValueNode, seg: string): EntryNode | ValueNode | undefined => {
+const getValueChild = (v: ValueNode, seg: string): ValueNode | undefined => {
 	switch (v.t) {
 		case T.Obj:
 			return v.props[seg];
@@ -625,7 +608,7 @@ const resolveSet = (item: Resolver["resolutionOrder"][number], resolver: Resolve
 	return (item as SetLike).type === "set" ? (item as any) : null;
 };
 
-const isSet = (v: unknown): v is { sources: unknown[] } => isPlainObject(v) && Array.isArray((v as any).sources);
+const isSet = (v: unknown): v is { sources: unknown[] } => isPlainObject(v) && Array.isArray(v.sources);
 
 const toBaseURL = (base: URL | string | undefined, fallback: URL): URL => {
 	if (base == null) return fallback;

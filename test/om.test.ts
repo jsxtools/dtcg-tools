@@ -1,22 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { typedBase, typedColor, typedFocusRing } from "../src/test/example.ts";
+import { nodeSys } from "../src/loader/node.ts";
 
 import {
-	OMLoaderHost,
-	T,
 	asCubicBezier,
 	asDuration,
 	buildOM,
 	createEvalContext,
 	getToken,
 	getValueByPointer,
-	toJSONComputed,
 	type ObjNode,
+	OMLoaderHost,
 	parseValue,
+	T,
+	toJSONComputed,
 } from "../src/loader/om.ts";
 
-import { nodeSys } from "../src/loader/node.ts";
+import { typedBase, typedColor, typedFocusRing } from "../src/test/example.ts";
 
 describe("loader/om", () => {
 	it("resolves alias + JSON Pointer refs inside composite values", () => {
@@ -76,6 +76,17 @@ describe("loader/om", () => {
 		const slow = getToken(doc, "transition.slow");
 		if (!slow) throw new Error("missing token");
 		expect(asDuration(slow.value, ctx)).toEqual({ value: 120, unit: "ms" });
+	});
+
+	it("lets a later object-valued token override an earlier leaf-valued token", () => {
+		const doc = buildOM([
+			{ transition: { $type: "duration", fast: { $value: "{transition.slow}" }, slow: { $value: { value: 120, unit: "ms" } } } } as any,
+			{ transition: { fast: { $value: { value: 80, unit: "ms" } } } } as any,
+		]);
+		const ctx = createEvalContext(doc);
+		const fast = getToken(doc, "transition.fast");
+		if (!fast) throw new Error("missing token");
+		expect(asDuration(fast.value, ctx)).toEqual({ value: 80, unit: "ms" });
 	});
 
 	it("can load from a resolver via OMLoaderHost", () => {
